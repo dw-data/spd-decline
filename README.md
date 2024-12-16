@@ -28,7 +28,9 @@ Hemmerlein](https://de.linkedin.com/in/dustin-hemmerlein-4671a8173)
 
 ## Analysis
 
-You can find the code behind this analysis in the R Markdown file `SPD-polls-analysis.Rmd`. You will need the programming language R to run it.
+You can find the code behind this analysis in the R Markdown file
+`SPD-polls-analysis.Rmd`. You will need the programming language R to
+run it.
 
 ### Scrape data
 
@@ -38,24 +40,20 @@ been documenting polling results in Germany going back to the 1990s.
 
 This is an excerpt of the resulting dataset:
 
-    ##        datum cdu_csu spd grune fdp linke af_d
-    ## 1 2024-12-10      31  17    13   4     3   18
-    ## 2 2024-12-06      33  15    14   4     3   17
-    ## 3 2024-12-05      32  16    14   4     3   18
-    ## 4 2024-12-05      30  18    13   4     3   19
-    ## 5 2024-12-03      32  16    12   3     4   18
-    ## 6 2024-12-03      34  15    13   4     3   17
-    ##                                            pollster
-    ## 1                                             Forsa
-    ## 2                           Forschungsgruppe Wahlen
-    ## 3                                   Infratest dimap
-    ## 4                                            YouGov
-    ## 5                                             Forsa
-    ## 6 GMS (Gesellschaft für Markt- und Sozialforschung)
+| datum | cdu_csu | spd | grune | fdp | linke | af_d | pollster |
+|:---|---:|---:|---:|---:|---:|---:|:---|
+| 2024-11-22 | 37.0 | 15.0 | 10.0 | 4.0 | NA | 17.0 | Allensbach (Institut für Demoskopie) |
+| 2013-09-22 | 41.5 | 25.7 | 8.4 | 4.8 | 8.6 | 4.7 | Emnid |
+| 2024-12-10 | 31.0 | 17.0 | 13.0 | 4.0 | 3.0 | 18.0 | Forsa |
+| 2024-12-06 | 33.0 | 15.0 | 14.0 | 4.0 | 3.0 | 17.0 | Forschungsgruppe Wahlen |
+| 2024-12-03 | 34.0 | 15.0 | 13.0 | 4.0 | 3.0 | 17.0 | GMS (Gesellschaft für Markt- und Sozialforschung) |
+| 2024-12-05 | 32.0 | 16.0 | 14.0 | 4.0 | 3.0 | 18.0 | Infratest dimap |
+| 2024-11-29 | 32.0 | 15.0 | 13.0 | 4.0 | 3.0 | 18.0 | Verian (Kantar Public, Emnid) |
+| 2024-12-05 | 30.0 | 18.0 | 13.0 | 4.0 | 3.0 | 19.0 | YouGov |
 
 And this is what all of these polling results look like over time:
 
-![](SPD-polls-analysis_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](SPD-polls-analysis_files/figure-gfm/chart%201:%20plot%20polls%20dots-1.png)<!-- -->
 
 ### Calculate smoothed average line
 
@@ -81,7 +79,13 @@ in 2005.
 
 This is what the finished chart looks like:
 
-![](SPD-polls-analysis_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+![](SPD-polls-analysis_files/figure-gfm/chart%202:%20plot%20polls%20with%20smoothed%20average-1.png)<!-- -->
 
 ### Sonify data
 

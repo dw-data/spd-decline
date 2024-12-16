@@ -98,12 +98,13 @@ save(wahlrecht, file = "data/poll_data.RData")
 This is an excerpt of the resulting dataset:
 
 ```{r}
-wahlrecht %>% arrange(desc(datum)) %>% head()
+wahlrecht %>% arrange(desc(datum)) %>% group_by(pollster) %>% 
+  slice_max(datum) %>% knitr::kable()
 ```
 
 And this is what all of these polling results look like over time:
 
-```{r warning=FALSE}
+```{r chart 1: plot polls dots, warning=FALSE}
 ggplot(wahlrecht %>% filter(datum >= as.Date("2005-10-01")),
        aes(datum, spd)) +
   geom_point(color="#DB4240", alpha=0.09, stroke=0, linewidth=2) + 
@@ -135,7 +136,7 @@ predictions = data.frame(date = months,
 
 This is what the finished chart looks like:
 
-```{r}
+```{r chart 2: plot polls with smoothed average}
 ggplot(wahlrecht %>% filter(datum >= as.Date("2005-10-01")),
        aes(datum, spd)) +
   geom_point(color="#DB4240", alpha=0.09, stroke=0, size=2) + 
