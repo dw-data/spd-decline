@@ -1,0 +1,157 @@
+---
+title: "This is how the decline of the SPD sounds"
+output: github_document
+number_sections: yes
+---
+
+`December 13, 2024`
+
+Germany's Social Democratic Party (SPD) still leads the current government under Chancellor Olaf Scholz – but his governing coalition has fallen apart and he's called for snap elections. The SPD's poll numbers have been declining for years. We turned the figures into sound – the lower the note, the worse the result.
+
+*This story is inspired by the 2018 project ["Der Sound zum tiefen Fall der SPD"](https://interaktiv.morgenpost.de/spd-absturz-sound/) by Funke Interaktiv for Berliner Morgenpost.*
+
+*Thank you to Moritz Klack, André Pätzold, Marie-Louise Timcke, Julius Tröger and David Wendler for their great work and for making the [code behind their project](https://interaktiv.morgenpost.de/spd-absturz-sound/data/spd-absturz-sound-methodik.html) publicly available.*
+
+See the final result on our Instagram channel: [\@dw_news](https://www.instagram.com/dwnews)
+
+**Story by:** [Kira Schacht](https://twitter.com/daten_drang) and [Dustin Hemmerlein](https://de.linkedin.com/in/dustin-hemmerlein-4671a8173)
+
+## Analysis 
+
+You can find the code behind this analysis in the R Markdown file `SPD-polls-analysis.Rmd`. You will need the programming language R to run it.
+
+```{r setup, include=FALSE}
+setwd("/Users/SchachtK/Library/CloudStorage/OneDrive-DeutscheWelle/2412 SPD decline/github/spd-decline")
+
+library("needs")
+needs(tidyverse, rvest, janitor)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### Scrape data
+
+To analyze polling results, we extract data from [wahlrecht.de](https://www.wahlrecht.de/umfragen/index.htm), which has been documenting polling results in Germany going back to the 1990s.
+
+```{r Make list of links to scrape}
+#links to each pollster
+tmp = read_html("http://www.wahlrecht.de/umfragen/") %>%
+      html_nodes("th.in > a") %>% 
+      html_attr("href") %>% #get links from html structure
+      paste0("http://www.wahlrecht.de/umfragen/", .) #format
+#links to past legislation periods for each of these pollsters
+tmp2 = lapply(tmp, function(l) {
+  read_html(l) %>% html_nodes("p.navi > a") %>% html_attr("href")
+  }) %>% #get links from html structure
+  unlist %>% #concatenate
+  paste0("http://www.wahlrecht.de/umfragen/", .) %>% #format
+  `[`(grepl("[0-9]",.)) #filter out links that don't lead to previous time periods
+
+#bind both link lists together
+l = c(tmp, tmp2)
+
+rm(tmp,tmp2) #remove temporary variables
+
+```
+
+```{r Scrape and clean data, warning=FALSE}
+
+#Create empty list to fill with data
+wahlrecht = vector("list", length = length(l))
+
+#Loop through each sub-page
+for(i in 1:length(l)){
+  #read source code
+  tmp = read_html(l[i])
+  #get pollster name
+  pollster = tmp %>% html_node("h1") %>% html_text()
+  
+  wahlrecht[[i]] = tmp %>%
+    #extract table node from html
+    html_node("table.wilko") %>% 
+    #convert to data frame
+    html_table(convert = FALSE, trim = TRUE) %>% 
+    #use first row as headers
+    row_to_names(row_number = 1, remove_row = TRUE) %>% 
+    clean_names() %>% 
+    #append pollster name
+    cbind(pollster = pollster)
+      
+};rm(i, tmp, pollster)
+
+#clean resulting data frame
+wahlrecht = wahlrecht %>%
+  bind_rows() %>% #convert to one data frame
+  select(1,3:8,15) %>% #only keep date, current parliament parties, and pollster name
+  rename(datum = x) %>% 
+  mutate(datum = gsub("\\?\\?","01",datum)) %>% #replace one instance of unknown date with first of the month
+  filter(grepl("^[0-9]", datum)) %>% #filter out rows without poll date (empty rows or meta info)
+  mutate(across(2:7, ~ gsub("[ \\%–]","",.x) )) %>% #format results as numbers
+  mutate(across(2:7, ~ gsub(",",".",.x) )) %>% 
+  mutate(across(2:7, as.numeric )) %>% 
+  mutate(datum = convert_to_date(datum, character_fun = lubridate::dmy)) %>% 
+  filter(!is.na(spd)) #remove two rows without polling data
+
+save(wahlrecht, file = "data/poll_data.RData")
+```
+
+This is an excerpt of the resulting dataset:
+
+```{r}
+wahlrecht %>% arrange(desc(datum)) %>% head()
+```
+
+And this is what all of these polling results look like over time:
+
+```{r warning=FALSE}
+ggplot(wahlrecht %>% filter(datum >= as.Date("2005-10-01")),
+       aes(datum, spd)) +
+  geom_point(color="#DB4240", alpha=0.09, stroke=0, linewidth=2) + 
+  labs(title = "SPD polling results over time, in %", x = "", y = "") +
+  theme_minimal()
+```
+
+### Calculate smoothed average line
+
+We include data from representative surveys from 8 different pollsters in this analysis, which means there might be multiple results with slight statistical variations for the same time period.
+
+In order to show an average of these polls over time, we use a local regression ([LOESS-smoothing](https://web.archive.org/web/20020416060643/https://www.itl.nist.gov/div898/handbook//pmd/section1/pmd144.htm)) algorithm.
+
+For any given point in time, it considers the closest 2,5 percent of survey values in our dataset and calculates a weighted average of those. The closer to the group average a value is, the more it factors into the calculation. This limits the effect of extreme outliers on our estimated average.
+
+```{r Calculate local regression}
+#fit loess smoothing (local regression) model with span of 2.5%
+model = loess(wahlrecht$spd ~ as.numeric(wahlrecht$datum), span=0.025)
+```
+
+In order to turn the polling average into distinct sounds, we show one data point per month instead of a continuous daily curve. We show the last 20 years, starting with the first month after the federal election in 2005.
+
+```{r Calculate one prediction per month}
+#round to monthly predictions for the sonification 
+months = seq(as.Date('2005-10-01'), as.Date('2024-12-01'), by="months")
+predictions = data.frame(date = months,
+                    value = predict(model, as.numeric(months)) %>% round)
+```
+
+This is what the finished chart looks like:
+
+```{r}
+ggplot(wahlrecht %>% filter(datum >= as.Date("2005-10-01")),
+       aes(datum, spd)) +
+  geom_point(color="#DB4240", alpha=0.09, stroke=0, size=2) + 
+  geom_line(data = predictions, aes(date, value), color = "#DB4240", size=1)+
+  labs(title = "SPD polling results over time, in %", x = "", y = "") +
+  theme_minimal()
+```
+
+### Sonify data
+
+To turn the monthly local averages into sound, we use the free tool [DataSonifyer](https://studio.datasonifyer.de/).
+
+If you want to see which presets we used, you can import our configuration file `data/spd-polls-DataSonifyerExport.json` into DataSonifyer with the "Import preset" button at the bottom of the tool's page.
+
+```{r Export data}
+predictions %>%
+  write.csv("data/spd-polls-monthly-loess.csv",
+            row.names = F, na = "", quote = F)
+```
